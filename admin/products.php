@@ -170,6 +170,7 @@ if (
 
 /* =========================================================
    UPDATE PRODUCT
+   Stock can only be changed when current stock is 0.
    ========================================================= */
 
 if (
@@ -195,9 +196,6 @@ if (
     $description =
         trim($_POST['description'] ?? '');
 
-    $stock =
-        (int) ($_POST['stock'] ?? 0);
-
     $isBestSeller =
         isset($_POST['is_best_seller'])
             ? 1
@@ -209,8 +207,7 @@ if (
         $name === '' ||
         $categoryId <= 0 ||
         $price <= 0 ||
-        $image === '' ||
-        $stock < 0
+        $image === ''
     ) {
 
         $message =
@@ -223,36 +220,108 @@ if (
 
         try {
 
-            $updateStmt = $pdo->prepare("
-                UPDATE products
-                SET
-                    category_id = ?,
-                    name = ?,
-                    price = ?,
-                    image = ?,
-                    description = ?,
-                    stock = ?,
-                    is_best_seller = ?
+            /* -------------------------------------------------
+               GET CURRENT STOCK FROM DATABASE
+               ------------------------------------------------- */
+
+            $currentProductStmt = $pdo->prepare("
+                SELECT
+                    product_id,
+                    stock
+                FROM products
                 WHERE product_id = ?
+                LIMIT 1
             ");
 
-            $updateStmt->execute([
-                $categoryId,
-                $name,
-                $price,
-                $image,
-                $description,
-                $stock,
-                $isBestSeller,
+            $currentProductStmt->execute([
                 $productId
             ]);
 
+            $currentProduct =
+                $currentProductStmt->fetch();
 
-            header(
-                'Location: products.php?updated=1'
-            );
 
-            exit;
+            if (!$currentProduct) {
+
+                $message =
+                    'Product not found.';
+
+                $messageType =
+                    'error';
+
+            } else {
+
+                $currentStock =
+                    (int) $currentProduct['stock'];
+
+
+                /* ---------------------------------------------
+                   STOCK RULE
+
+                   > 0 = LOCKED
+                   = 0 = ADMIN MAY RESTOCK
+                   --------------------------------------------- */
+
+                if ($currentStock > 0) {
+
+                    $newStock =
+                        $currentStock;
+
+                } else {
+
+                    $newStock =
+                        (int) ($_POST['stock'] ?? 0);
+
+
+                    if ($newStock <= 0) {
+
+                        $message =
+                            'This product is out of stock. Enter a new stock quantity greater than 0.';
+
+                        $messageType =
+                            'error';
+
+                    }
+
+                }
+
+
+                if ($messageType !== 'error') {
+
+                    $updateStmt = $pdo->prepare("
+                        UPDATE products
+                        SET
+                            category_id = ?,
+                            name = ?,
+                            price = ?,
+                            image = ?,
+                            description = ?,
+                            stock = ?,
+                            is_best_seller = ?
+                        WHERE product_id = ?
+                    ");
+
+                    $updateStmt->execute([
+                        $categoryId,
+                        $name,
+                        $price,
+                        $image,
+                        $description,
+                        $newStock,
+                        $isBestSeller,
+                        $productId
+                    ]);
+
+
+                    header(
+                        'Location: products.php?updated=1'
+                    );
+
+                    exit;
+
+                }
+
+            }
 
 
         } catch (PDOException $e) {
@@ -459,6 +528,7 @@ if ($editId > 0) {
 
 
 <!DOCTYPE html>
+
 <html lang="en">
 
 <head>
@@ -642,6 +712,24 @@ textarea {
 .product-form textarea {
     min-height: 100px;
     resize: vertical;
+}
+
+.product-form input[readonly] {
+    background: #f1f1f1;
+    color: #777;
+    cursor: not-allowed;
+}
+
+.stock-note {
+    margin: -10px 0 18px;
+    color: #777;
+    font-size: 10px;
+    line-height: 1.5;
+}
+
+.stock-note-out {
+    color: #111;
+    font-weight: 700;
 }
 
 .checkbox-row {
@@ -989,15 +1077,51 @@ textarea {
                     Stock
                 </label>
 
-                <input
-                    type="number"
-                    name="stock"
-                    min="0"
-                    value="<?= htmlspecialchars(
-                        $editProduct['stock'] ?? '20'
-                    ) ?>"
-                    required
-                >
+                <?php if ($editProduct): ?>
+
+                    <?php if ((int) $editProduct['stock'] > 0): ?>
+
+                        <input
+                            type="number"
+                            value="<?= (int) $editProduct['stock'] ?>"
+                            readonly
+                        >
+
+                        <p class="stock-note">
+                            Current stock is
+                            <?= (int) $editProduct['stock'] ?>.
+                            Stock cannot be edited until it reaches 0.
+                        </p>
+
+                    <?php else: ?>
+
+                        <input
+                            type="number"
+                            name="stock"
+                            min="1"
+                            value=""
+                            placeholder="Enter new stock quantity"
+                            required
+                        >
+
+                        <p class="stock-note stock-note-out">
+                            This product is out of stock.
+                            Enter the new stock quantity.
+                        </p>
+
+                    <?php endif; ?>
+
+                <?php else: ?>
+
+                    <input
+                        type="number"
+                        name="stock"
+                        min="0"
+                        value="20"
+                        required
+                    >
+
+                <?php endif; ?>
 
 
                 <label>
@@ -1272,4 +1396,5 @@ textarea {
 </div>
 
 </body>
-</html>
+
+</html> The organization message to the database of me to start income total income total income is next to another legs of bringing disburs night

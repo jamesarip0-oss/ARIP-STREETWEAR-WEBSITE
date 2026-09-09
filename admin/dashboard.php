@@ -67,6 +67,7 @@ $messageCount = 0;
 $processingCount = 0;
 $shippedCount = 0;
 $completedCount = 0;
+$totalIncome = 0;
 
 
 /* TOTAL PRODUCTS */
@@ -197,6 +198,31 @@ try {
 } catch (PDOException $e) {
 
     $completedCount = 0;
+}
+
+
+/* TOTAL INCOME
+   COMPLETED ORDERS ONLY
+*/
+
+try {
+
+    $totalIncome =
+        (float) $pdo
+            ->query("
+                SELECT
+                    COALESCE(
+                        SUM(total_amount),
+                        0
+                    )
+                FROM orders
+                WHERE status = 'Completed'
+            ")
+            ->fetchColumn();
+
+} catch (PDOException $e) {
+
+    $totalIncome = 0;
 }
 
 
@@ -497,7 +523,7 @@ function getStatusClass(string $status): string
         .stats-grid {
             display: grid;
             grid-template-columns:
-                repeat(5, minmax(0, 1fr));
+                repeat(6, minmax(0, 1fr));
             gap: 15px;
             margin-bottom: 25px;
         }
@@ -542,6 +568,25 @@ function getStatusClass(string $status): string
             color: #888;
             font-size: 9px;
             text-transform: uppercase;
+        }
+
+
+        .income-card {
+            background: #111;
+            color: #fff;
+            border-color: #111;
+        }
+
+
+        .income-card span,
+        .income-card small {
+            color: #aaa;
+        }
+
+
+        .income-card:hover {
+            border-color: #111;
+            background: #1d1d1d;
         }
 
 
@@ -881,13 +926,17 @@ function getStatusClass(string $status): string
            RESPONSIVE
            ===================================================== */
 
-        @media (max-width: 1200px) {
+        @media (max-width: 1350px) {
 
             .stats-grid {
                 grid-template-columns:
                     repeat(3, minmax(0, 1fr));
             }
 
+        }
+
+
+        @media (max-width: 1200px) {
 
             .dashboard-grid {
                 grid-template-columns: 1fr;
@@ -968,8 +1017,6 @@ function getStatusClass(string $status): string
 
 
         <nav class="admin-nav">
-
-            <!-- DASHBOARD ACTIVE -->
 
             <a
                 href="dashboard.php"
@@ -1183,6 +1230,29 @@ function getStatusClass(string $status): string
                 </small>
 
             </a>
+
+            <!-- TOTAL INCOME -->
+
+            <div
+                class="stat-card income-card"
+            >
+
+                <span>
+                    Total Income
+                </span>
+
+                <strong>
+                    ₱<?= number_format(
+                        $totalIncome,
+                        2
+                    ) ?>
+                </strong>
+
+                <small>
+                    Completed Orders Only
+                </small>
+
+            </div>
 
 
         </section>

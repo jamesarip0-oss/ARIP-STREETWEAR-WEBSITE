@@ -820,6 +820,7 @@ $contact = [
 
     /* =====================================================
        GET CART
+       MAXIMUM QUANTITY = 5
        ===================================================== */
 
     function getCart() {
@@ -838,9 +839,61 @@ $contact = [
                     : [];
 
 
-            return Array.isArray(parsed)
-                ? parsed
-                : [];
+            if (!Array.isArray(parsed)) {
+                return [];
+            }
+
+
+            /*
+             * Normalize all saved quantities.
+             * Minimum = 1
+             * Maximum = 5
+             */
+
+            const normalized =
+                parsed.map(
+                    function (item) {
+
+                        const quantity =
+                            Math.min(
+                                5,
+                                Math.max(
+                                    1,
+                                    Number(
+                                        item.quantity || 1
+                                    )
+                                )
+                            );
+
+
+                        return {
+                            ...item,
+                            quantity: quantity
+                        };
+
+                    }
+                );
+
+
+            /*
+             * If an old cart contains 6, 7, 10, etc.,
+             * automatically correct it back to maximum 5.
+             */
+
+            if (
+                JSON.stringify(normalized) !==
+                JSON.stringify(parsed)
+            ) {
+
+                localStorage.setItem(
+                    CART_ITEMS_KEY,
+                    JSON.stringify(normalized)
+                );
+
+            }
+
+
+            return normalized;
 
         } catch (error) {
 
@@ -974,10 +1027,13 @@ $contact = [
             function (item, index) {
 
                 const quantity =
-                    Math.max(
-                        1,
-                        Number(
-                            item.quantity || 1
+                    Math.min(
+                        5,
+                        Math.max(
+                            1,
+                            Number(
+                                item.quantity || 1
+                            )
                         )
                     );
 
@@ -1060,6 +1116,7 @@ $contact = [
                                 class="qty-btn plus"
                                 data-index="${index}"
                                 aria-label="Increase quantity"
+                                ${quantity >= 5 ? 'disabled' : ''}
                             >
                                 +
                             </button>
@@ -1162,10 +1219,29 @@ $contact = [
                 }
 
 
-                cart[index].quantity =
+                const currentQuantity =
                     Number(
                         cart[index].quantity || 1
-                    ) + 1;
+                    );
+
+
+                /* MAXIMUM = 5 */
+
+                if (
+                    currentQuantity >= 5
+                ) {
+
+                    alert(
+                        'Maximum quantity is 5 per product.'
+                    );
+
+                    return;
+
+                }
+
+
+                cart[index].quantity =
+                    currentQuantity + 1;
 
 
                 saveCart(

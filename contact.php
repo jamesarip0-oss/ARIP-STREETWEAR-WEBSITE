@@ -2,28 +2,141 @@
 
 session_start();
 
+require_once __DIR__ . '/config/db.php';
+
+
+/* =========================================================
+   CONTACT FORM MESSAGES
+   ========================================================= */
+
 $successMessage = '';
 $errorMessage = '';
 
+
+/* =========================================================
+   PROCESS CONTACT FORM
+   ========================================================= */
+
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
-    $name = trim($_POST['name'] ?? '');
-    $email = trim($_POST['email'] ?? '');
-    $subject = trim($_POST['subject'] ?? '');
-    $message = trim($_POST['message'] ?? '');
+    $name =
+        trim($_POST['name'] ?? '');
 
-    if ($name === '' || $email === '' || $subject === '' || $message === '') {
-        $errorMessage = 'Please complete all required fields.';
-    } elseif (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
-        $errorMessage = 'Please enter a valid email address.';
+    $email =
+        trim($_POST['email'] ?? '');
+
+    $subject =
+        trim($_POST['subject'] ?? '');
+
+    $message =
+        trim($_POST['message'] ?? '');
+
+
+    /* =====================================================
+       VALIDATION
+       ===================================================== */
+
+    if (
+        $name === '' ||
+        $email === '' ||
+        $subject === '' ||
+        $message === ''
+    ) {
+
+        $errorMessage =
+            'Please complete all required fields.';
+
+    } elseif (
+        !filter_var(
+            $email,
+            FILTER_VALIDATE_EMAIL
+        )
+    ) {
+
+        $errorMessage =
+            'Please enter a valid email address.';
+
     } else {
-        // For local XAMPP demo:
-        // We validate the message but do not send real email.
-        $successMessage = 'Thank you! Your message has been received.';
+
+        /* =================================================
+           SAVE MESSAGE TO DATABASE
+           ================================================= */
+
+        try {
+
+            $messageStmt =
+                $pdo->prepare("
+                    INSERT INTO contact_messages
+                    (
+                        full_name,
+                        email,
+                        subject,
+                        message
+                    )
+                    VALUES
+                    (
+                        ?,
+                        ?,
+                        ?,
+                        ?
+                    )
+                ");
+
+
+            $messageStmt->execute([
+                $name,
+                $email,
+                $subject,
+                $message
+            ]);
+
+
+            /*
+             * Redirect after successful insert
+             * to prevent duplicate submission
+             * when refreshing the page.
+             */
+
+            header(
+                'Location: contact.php?sent=1'
+            );
+
+            exit;
+
+
+        } catch (PDOException $e) {
+
+            $errorMessage =
+                'Unable to send your message right now. Please try again.';
+
+        }
+
     }
+
 }
 
+
+/* =========================================================
+   SUCCESS MESSAGE
+   ========================================================= */
+
+if (
+    isset($_GET['sent']) &&
+    $_GET['sent'] === '1'
+) {
+
+    $successMessage =
+        'Thank you! Your message has been received.';
+
+}
+
+
+/* =========================================================
+   SITE DATA
+   ========================================================= */
+
 $year = date('Y');
+
 
 $navLinks = [
     'Home'        => 'index.php',
@@ -391,8 +504,8 @@ $navLinks = [
 
             <p class="contact-intro">
 
-                We're always here to help. Choose the best way
-                to get in touch with us.
+                We're always here to help. Choose the best way to
+                get in touch with us.
 
             </p>
 
